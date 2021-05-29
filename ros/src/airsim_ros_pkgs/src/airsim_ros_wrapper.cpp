@@ -5,7 +5,6 @@
 #include "common/AirSimSettings.hpp"
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 
-
 constexpr char AirsimROSWrapper::CAM_YML_NAME[];
 constexpr char AirsimROSWrapper::WIDTH_YML_NAME[];
 constexpr char AirsimROSWrapper::HEIGHT_YML_NAME[];
@@ -119,7 +118,8 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
     // subscribe to control commands on global nodehandle
     gimbal_angle_quat_cmd_sub_ = nh_private_.subscribe("gimbal_angle_quat_cmd", 50, &AirsimROSWrapper::gimbal_angle_quat_cmd_cb, this);
     gimbal_angle_euler_cmd_sub_ = nh_private_.subscribe("gimbal_angle_euler_cmd", 50, &AirsimROSWrapper::gimbal_angle_euler_cmd_cb, this);
-    origin_geo_point_pub_ = nh_private_.advertise<airsim_ros_pkgs::GPSYaw>("origin_geo_point", 10);       
+    origin_geo_point_pub_ = nh_private_.advertise<airsim_ros_pkgs::GPSYaw>("origin_geo_point", 10);
+    img_sent_pub_ = nh_private_.advertise<std_msgs::Header>("/airsim_node/sent", 500);
 
     airsim_img_request_vehicle_name_pair_vec_.clear();
     image_pub_vec_.clear();
@@ -781,7 +781,7 @@ sensor_msgs::PointCloud2 AirsimROSWrapper::get_lidar_msg_from_airsim(const msr::
 
     if (isENU_)
     {
-        try
+        /*try
         {
             sensor_msgs::PointCloud2 lidar_msg_enu;
             auto transformStampedENU = tf_buffer_.lookupTransform(AIRSIM_FRAME_ID, vehicle_name, ros::Time(0), ros::Duration(1));
@@ -796,7 +796,7 @@ sensor_msgs::PointCloud2 AirsimROSWrapper::get_lidar_msg_from_airsim(const msr::
         {
             ROS_WARN("%s", ex.what());
             ros::Duration(1.0).sleep();
-        }
+        }*/
     }
 
     return lidar_msg;
@@ -913,7 +913,7 @@ void AirsimROSWrapper::publish_odom_tf(const nav_msgs::Odometry& odom_msg)
     odom_tf.transform.rotation.y = odom_msg.pose.pose.orientation.y;
     odom_tf.transform.rotation.z = odom_msg.pose.pose.orientation.z;
     odom_tf.transform.rotation.w = odom_msg.pose.pose.orientation.w;
-    tf_broadcaster_.sendTransform(odom_tf);
+    //tf_broadcaster_.sendTransform(odom_tf);
 }
 
 airsim_ros_pkgs::GPSYaw AirsimROSWrapper::get_gps_msg_from_airsim_geo_point(const msr::airlib::GeoPoint& geo_point) const
@@ -1092,8 +1092,14 @@ void AirsimROSWrapper::publish_vehicle_state()
         }
 
         // odom and transforms
-        vehicle_ros->odom_local_pub.publish(vehicle_ros->curr_odom);
-        publish_odom_tf(vehicle_ros->curr_odom);
+        nav_msgs::OdometryPtr odom_msg(new nav_msgs::Odometry);
+        *odom_msg = vehicle_ros->curr_odom;
+        //odom_msg->pose.pose.position = vehicle_ros->curr_odom.pose.pose.position;
+        //odom_msg->pose.pose.orientation = vehicle_ros->curr_odom.pose.pose.orientation;
+        //odom_msg->twist.twist.linear = vehicle_ros->curr_odom.twist.twist.linear;
+        //odom_msg->twist.twist.angular = vehicle_ros->curr_odom.twist.twist.angular;
+        vehicle_ros->odom_local_pub.publish(odom_msg);
+        //publish_odom_tf(odom_msg);
 
         // ground truth GPS position from sim/HITL
         vehicle_ros->global_gps_pub.publish(vehicle_ros->gps_sensor_msg);
@@ -1422,11 +1428,13 @@ sensor_msgs::ImagePtr AirsimROSWrapper::get_img_msg_from_response(const ImageRes
                                                                 const ros::Time curr_ros_time, 
                                                                 const std::string frame_id)
 {
+    static uint32_t seq[6] = {0,0,0,0,0,0};
     sensor_msgs::ImagePtr img_msg_ptr = boost::make_shared<sensor_msgs::Image>();
     img_msg_ptr->data = img_response.image_data_uint8;
     img_msg_ptr->step = img_response.width * 3; // todo un-hardcode. image_width*num_bytes
     img_msg_ptr->header.stamp = airsim_timestamp_to_ros(img_response.time_stamp);
     img_msg_ptr->header.frame_id = frame_id;
+    img_msg_ptr->header.seq = seq[static_cast<int>(img_response.image_type)]++;
     img_msg_ptr->height = img_response.height;
     img_msg_ptr->width = img_response.width;
     img_msg_ptr->encoding = "bgr8";
@@ -1473,11 +1481,12 @@ sensor_msgs::CameraInfo AirsimROSWrapper::generate_cam_info(const std::string& c
 void AirsimROSWrapper::process_and_publish_img_response(const std::vector<ImageResponse>& img_response_vec, const int img_response_idx, const std::string& vehicle_name)
 {    
     // todo add option to use airsim time (image_response.TTimePoint) like Gazebo /use_sim_time param
-    ros::Time curr_ros_time = ros::Time::now(); 
+    ros::Time curr_ros_time;// = ros::Time::now();
     int img_response_idx_internal = img_response_idx;
 
     for (const auto& curr_img_response : img_response_vec)
     {
+        curr_ros_time = airsim_timestamp_to_ros(curr_img_response.time_stamp); //FIX
         // todo publishing a tf for each capture type seems stupid. but it foolproofs us against render thread's async stuff, I hope. 
         // Ideally, we should loop over cameras and then captures, and publish only one tf.  
         publish_camera_tf(curr_img_response, curr_ros_time, vehicle_name, curr_img_response.camera_name);
@@ -1499,9 +1508,17 @@ void AirsimROSWrapper::process_and_publish_img_response(const std::vector<ImageR
         // Scene / Segmentation / SurfaceNormals / Infrared
         else
         {
-            image_pub_vec_[img_response_idx_internal].publish(get_img_msg_from_response(curr_img_response, 
-                                                    curr_ros_time, 
-                                                    curr_img_response.camera_name + "_optical"));
+            sensor_msgs::ImagePtr img_msg = get_img_msg_from_response(curr_img_response,
+                                                   curr_ros_time,
+                                                   curr_img_response.camera_name + "_optical");
+
+            if (static_cast<int>(curr_img_response.image_type) == 0 )
+            {
+                std_msgs::Header header_msg;
+                header_msg.stamp = curr_ros_time;
+                img_sent_pub_.publish(header_msg);
+            }
+            image_pub_vec_[img_response_idx_internal].publish(img_msg);
         }
         img_response_idx_internal++;
     }
@@ -1555,8 +1572,8 @@ void AirsimROSWrapper::publish_camera_tf(const ImageResponse& img_response, cons
     quat_cam_optical.normalize();
     tf2::convert(quat_cam_optical, cam_tf_optical_msg.transform.rotation);
 
-    tf_broadcaster_.sendTransform(cam_tf_body_msg);
-    tf_broadcaster_.sendTransform(cam_tf_optical_msg);
+    //tf_broadcaster_.sendTransform(cam_tf_body_msg);
+    //tf_broadcaster_.sendTransform(cam_tf_optical_msg);
 }
 
 void AirsimROSWrapper::convert_yaml_to_simple_mat(const YAML::Node& node, SimpleMatrix& m) const

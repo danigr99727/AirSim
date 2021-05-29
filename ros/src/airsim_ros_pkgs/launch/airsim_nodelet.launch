@@ -3,8 +3,9 @@
 	<arg name="publish_clock" default="false"/>
 	<arg name="is_vulkan" default="true"/>
 	<arg name="host" default="129.31.139.24" />
+	<arg name="manager" default="manager" />
 
-	<node name="airsim_node" pkg="airsim_ros_pkgs" type="airsim_node" output="$(arg output)">
+	<node name="airsim_node" pkg="nodelet" type="nodelet" output="$(arg output)" args="load airsim_ros_pkgs/AirsimNodelet /$(arg manager)">
 		<param name="is_vulkan" type="bool" value="false" /> 
 		<!-- ROS timer rates. Note that timer callback will be processed at maximum possible rate, upperbounded by the following ROS params -->
 		<param name="update_airsim_img_response_every_n_sec" type="double" value="0.15" />
@@ -14,7 +15,6 @@
 		<param name="publish_clock" type="bool" value="$(arg publish_clock)" />
 		<param name="host_ip" type="string" value="$(arg host)" />
 	</node>
-
 	<!-- Static transforms -->
 	<include file="$(find airsim_ros_pkgs)/launch/static_transforms.launch"/>
 

@@ -27,8 +27,8 @@ The API to get the meshes in the scene is quite simple. However, one should note
  very rarely be called. In general this is ok because this function only accesses the static meshes which for most applications are
  not changing during the duration of your program.
 
-Note that you will have to use a 3rdparty library or your own custom code to actually interact with the recieved meshes. Below I utilize the
-python bindings of [libigl](https://github.com/libigl/libigl) to visualize the recieved meshes.
+Note that you will have to use a 3rdparty library or your own custom code to actually interact with the received meshes. Below I utilize the
+python bindings of [libigl](https://github.com/libigl/libigl) to visualize the received meshes.
 
 ```
 import airsim

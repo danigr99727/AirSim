@@ -2697,7 +2697,7 @@ enum class PARAM_ACK {
     // Parameter value received but not yet set/accepted. A subsequent PARAM_ACK_TRANSACTION
     // or PARAM_EXT_ACK with the final result will follow once operation is completed.
     // This is returned immediately for parameters that take longer to set, indicating
-    // taht the the parameter was recieved and does not need to be resent.
+    // taht the the parameter was received and does not need to be resent.
     PARAM_ACK_IN_PROGRESS = 3
 };
 
@@ -5930,7 +5930,7 @@ class MavLinkRadioStatus : public MavLinkMessageBase {
 public:
     const static uint8_t kMessageId = 109;
     MavLinkRadioStatus() { msgid = kMessageId; }
-    // Local (message sender) recieved signal strength indication in device-dependent
+    // Local (message sender) received signal strength indication in device-dependent
     // units/scale. Values: [0-254], 255: invalid/unknown.
     uint8_t rssi = 0;
     // Remote (message receiver) signal strength indication in device-dependent units/scale.

@@ -62,6 +62,8 @@ STRICT_MODE_ON
 #include <tf2/convert.h>
 #include <unordered_map>
 #include <memory>
+#include <std_msgs/Header.h>
+
 // #include "nodelet/nodelet.h"
 
 // todo move airlib typedefs to separate header file?
@@ -316,6 +318,7 @@ private:
 
     ros::ServiceServer reset_srvr_;
     ros::Publisher origin_geo_point_pub_; // home geo coord of drones
+    ros::Publisher img_sent_pub_;
     msr::airlib::GeoPoint origin_geo_point_;// gps coord of unreal origin 
     airsim_ros_pkgs::GPSYaw origin_geo_point_msg_; // todo duplicate
 
@@ -352,7 +355,7 @@ private:
     const std::string AIRSIM_ODOM_FRAME_ID = "odom_local_ned";
     const std::string ENU_ODOM_FRAME_ID = "odom_local_enu";
     std::string odom_frame_id_ = AIRSIM_ODOM_FRAME_ID;
-    tf2_ros::TransformBroadcaster tf_broadcaster_;
+    //tf2_ros::TransformBroadcaster tf_broadcaster_;
     tf2_ros::StaticTransformBroadcaster static_tf_pub_;
     
     bool isENU_ = false;

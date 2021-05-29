@@ -29,7 +29,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   message_generation
   nav_msgs
-  # nodelet
+  nodelet
   roscpp
   rospy
   sensor_msgs
@@ -108,6 +108,9 @@ target_link_libraries(airsim_node airsim_ros ${catkin_LIBRARIES} AirLib)
 
 add_executable(pd_position_controller_simple_node src/pd_position_controller_simple_node.cpp)
 target_link_libraries(pd_position_controller_simple_node pd_position_controller_simple airsim_ros ${catkin_LIBRARIES} AirLib)
+
+add_library(airsim_nodelet src/airsim_nodelet.cpp)
+target_link_libraries(airsim_nodelet  ${catkin_LIBRARIES} AirLib airsim_ros)
 
 install(TARGETS
     #list of nodes

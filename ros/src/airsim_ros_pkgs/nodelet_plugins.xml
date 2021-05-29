@@ -1,0 +1,7 @@
+<library path="lib/libairsim_nodelet">
+    <class name="airsim_ros_pkgs/AirsimNodelet" type="AirsimNodelet" base_class_type="nodelet::Nodelet">
+        <description>
+            Airsim nodelet.
+        </description>
+    </class>
+</library>
